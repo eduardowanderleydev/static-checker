@@ -3,11 +3,13 @@ package br.ucsal;
 import java.io.*;
 import java.util.*;
 
+import static java.lang.Character.isWhitespace;
+
 // TODO Não deverá ser solicitada a extensão do texto fonte na chamada de execução do Static Checker.
 // TODO Caso seja fornecido apenas o nome do texto fonte, este deve ser procurado no diretório corrente onde o Static Checker está sendo executado.
 //  Caso seja fornecido o caminho completo mais o nome do texto fonte como parâmetro de entrada, o arquivo deve ser procurado neste caminho indicado na entrada.
 
-public class StaticChecker {
+public class LexicalAnalyzer {
     private static final int MAX_LEXEME_LENGTH = 30;
 
     private static final Map<String, Integer> atomCodes = new HashMap<>();
@@ -83,7 +85,7 @@ public class StaticChecker {
     private List<Integer> indices;
     private List<Integer> lines;
 
-    public StaticChecker(String inputFile) {
+    public LexicalAnalyzer(String inputFile) {
         this.inputFile = inputFile;
         this.symbolsTable = new ArrayList();
         this.lexemes = new ArrayList();
@@ -116,7 +118,7 @@ public class StaticChecker {
 
         while (index < lineLength) {
             char currentChar = line.charAt(index);
-            if (Character.isWhitespace(currentChar)) {
+            if (isWhitespace(currentChar)) {
                 index++;
                 continue;
             }
@@ -135,29 +137,48 @@ public class StaticChecker {
 
             // Formar o átomo a partir do caractere atual e caracteres subsequentes válidos
             StringBuilder lexemeBuilder = new StringBuilder();
-            lexemeBuilder.append(currentChar);
-            index++;
-            while (index < lineLength && isValidCharacter(line.charAt(index)) && lexemeBuilder.length() < MAX_LEXEME_LENGTH) {
-                lexemeBuilder.append(line.charAt(index));
+
+            while (index < lineLength && lexemeBuilder.length() < MAX_LEXEME_LENGTH) {
+                if (isValidCharacter(line.charAt(index))) {
+                    lexemeBuilder.append(line.charAt(index));
+                }
+
+                if (isWhitespace(line.charAt(index))) break;
+
                 index++;
             }
 
             // Verificar se o átomo é um identificador válido
-            String lexeme = lexemeBuilder.toString();
-            int code = atomCodes.getOrDefault(lexeme, -1);
-            if (code != -1) {
-                symbolsTable.add(lexeme);
-                lexemes.add(lexeme);
-                codes.add(code);
-                indices.add(symbolsTable.size());
-                lines.add(lineNumber);
+            String lexeme = lexemeBuilder.toString().toUpperCase();
+
+            if (!lexeme.isEmpty()) {
+                int code = getOrDefault(lexeme, -1, atomCodes);
+                if (code != -1) {
+                    symbolsTable.add(lexeme);
+                    lexemes.add(lexeme);
+                    codes.add(code);
+                    indices.add(symbolsTable.size());
+                    lines.add(lineNumber);
+                }
+            }
+
+            if(index < lineLength && !isValidCharacter(line.charAt(index)) && !isWhitespace(line.charAt(index))) {
+                index++; // Avança o índice se o próximo caractere é inválido
             }
         }
     }
 
-    private boolean isValidCharacter(char c) {
-        // Verificar se o caractere é válido de acordo com as regras da linguagem ORMPlus2023-1
-        return Character.isLetterOrDigit(c) || c == '_' || c == '$' || c == '.';
+
+
+
+    private int getOrDefault(Object key, int defaultValue, Map<String, Integer> atomCodes) {
+        return atomCodes.keySet().stream().filter(atom -> atom.equalsIgnoreCase((String) key)).findFirst().map(atomCodes::get).orElse(defaultValue);
+    }
+
+    // Verificar se o caractere é válido de acordo com as regras da linguagem ORMPlus2023-1
+    private boolean isValidCharacter(Character c) {
+        int asciiValue = c;
+        return (asciiValue <= 127) && (Character.isLetterOrDigit(asciiValue) || c == '_' || c == '$' || c == '.');
     }
 
     private void generateLexicalReport() {
@@ -190,7 +211,7 @@ public class StaticChecker {
 
         try {
             PrintWriter writer = new PrintWriter(new FileWriter(tabReportFile));
-            writer.println("Código da Equipe: 99");
+            writer.println("Código da Equipe: 067");
             writer.println("Componentes:");
             writer.println("Eduardo Wanderley; eduardobraz.junior@ucsal.edu.br; (75)98207-4248");
             writer.println("RELATÓRIO DA TABELA DE SÍMBOLOS. Texto fonte analisado: " + inputFile);
@@ -215,6 +236,6 @@ public class StaticChecker {
     public static void main(String[] args) {
         String input = "/home/eduardo/Workspace/ucsal/statickChecker/Teste.231";
 
-        new StaticChecker(input).analyze();
+        new LexicalAnalyzer(input).analyze();
     }
 }
