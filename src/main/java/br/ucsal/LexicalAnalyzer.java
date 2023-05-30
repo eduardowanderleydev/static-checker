@@ -14,19 +14,16 @@ public class LexicalAnalyzer {
         atomsWithCodes.put("%", 301);
         atomsWithCodes.put("-", 401);
         atomsWithCodes.put("cons-cadeia", 501);
-        atomsWithCodes.put("submáquina1", 601);
         atomsWithCodes.put("caracter", 102);
         atomsWithCodes.put("logico", 109);
         atomsWithCodes.put("(", 302);
         atomsWithCodes.put("*", 402);
         atomsWithCodes.put("cons-caracter", 502);
-        atomsWithCodes.put("submáquina2", 602);
         atomsWithCodes.put("declaracoes", 103);
         atomsWithCodes.put("pausa", 110);
         atomsWithCodes.put(")", 303);
         atomsWithCodes.put("/", 403);
         atomsWithCodes.put("cons-inteiro", 503);
-        atomsWithCodes.put("submáquina3", 603);
         atomsWithCodes.put("enquanto", 104);
         atomsWithCodes.put("programa", 111);
         atomsWithCodes.put(",", 304);
@@ -38,7 +35,6 @@ public class LexicalAnalyzer {
         atomsWithCodes.put(":", 305);
         atomsWithCodes.put("!=", 411);
         atomsWithCodes.put("nom-funcao", 511);
-        atomsWithCodes.put("submáquinan", 60);
         atomsWithCodes.put("fim-declaracoes", 202);
         atomsWithCodes.put("retorna", 113);
         atomsWithCodes.put(":=", 306);
