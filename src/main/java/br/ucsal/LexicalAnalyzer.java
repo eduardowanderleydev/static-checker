@@ -1,79 +1,83 @@
 package br.ucsal;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.*;
+import java.util.regex.Pattern;
+
+import static java.util.regex.Pattern.CASE_INSENSITIVE;
 
 public class LexicalAnalyzer {
-    private static final int MAX_LEXEME_LENGTH = 30;
 
-    private static final Map<String, Integer> atomsWithCodes = new HashMap<>();
+    private static final int MAX_LEXEME_LENGTH = 30;
+    private static final Map<String, Integer> tableOfReservedWordsAndSymbols = new HashMap<>();
+    private static int counter = 0;
+    private final String inputFile;
+    private List<Token> tokens;
+    private SymbolTable symbolTable = new SymbolTable();
+    private boolean insideBlockComment = false;
 
     public static void initializeAtomsWithCodes() {
-        atomsWithCodes.put("cadeia", 101);
-        atomsWithCodes.put("inteiro", 108);
-        atomsWithCodes.put("%", 301);
-        atomsWithCodes.put("-", 401);
-        atomsWithCodes.put("cons-cadeia", 501);
-        atomsWithCodes.put("caracter", 102);
-        atomsWithCodes.put("logico", 109);
-        atomsWithCodes.put("(", 302);
-        atomsWithCodes.put("*", 402);
-        atomsWithCodes.put("cons-caracter", 502);
-        atomsWithCodes.put("declaracoes", 103);
-        atomsWithCodes.put("pausa", 110);
-        atomsWithCodes.put(")", 303);
-        atomsWithCodes.put("/", 403);
-        atomsWithCodes.put("cons-inteiro", 503);
-        atomsWithCodes.put("enquanto", 104);
-        atomsWithCodes.put("programa", 111);
-        atomsWithCodes.put(",", 304);
-        atomsWithCodes.put("+", 404);
-        atomsWithCodes.put("cons-real", 504);
-        atomsWithCodes.put("...", 605);
-        atomsWithCodes.put("false", 201);
-        atomsWithCodes.put("real", 112);
-        atomsWithCodes.put(":", 305);
-        atomsWithCodes.put("!=", 411);
-        atomsWithCodes.put("nom-funcao", 511);
-        atomsWithCodes.put("fim-declaracoes", 202);
-        atomsWithCodes.put("retorna", 113);
-        atomsWithCodes.put(":=", 306);
-        atomsWithCodes.put("#", 411);
-        atomsWithCodes.put("nom-programa", 512);
-        atomsWithCodes.put("fim-enquanto", 203);
-        atomsWithCodes.put("se", 114);
-        atomsWithCodes.put(";", 307);
-        atomsWithCodes.put("<", 412);
-        atomsWithCodes.put("variavel", 513);
-        atomsWithCodes.put("fim-func", 204);
-        atomsWithCodes.put("senao", 115);
-        atomsWithCodes.put("?", 308);
-        atomsWithCodes.put("<=", 413);
-        atomsWithCodes.put("fim-funcoes", 205);
-        atomsWithCodes.put("tipo-func", 116);
-        atomsWithCodes.put("[", 309);
-        atomsWithCodes.put("==", 414);
-        atomsWithCodes.put("fim-programa", 206);
-        atomsWithCodes.put("tipo-param", 117);
-        atomsWithCodes.put("]", 310);
-        atomsWithCodes.put(">", 415);
-        atomsWithCodes.put("fim-se", 105);
-        atomsWithCodes.put("tipo-var", 118);
-        atomsWithCodes.put("{", 311);
-        atomsWithCodes.put(">=", 416);
-        atomsWithCodes.put("funcoes", 106);
-        atomsWithCodes.put("true", 119);
-        atomsWithCodes.put("}", 312);
-        atomsWithCodes.put("imprime", 107);
-        atomsWithCodes.put("vazio", 120);
+        tableOfReservedWordsAndSymbols.put("cadeia", 101);
+        tableOfReservedWordsAndSymbols.put("inteiro", 108);
+        tableOfReservedWordsAndSymbols.put("%", 301);
+        tableOfReservedWordsAndSymbols.put("-", 401);
+        tableOfReservedWordsAndSymbols.put("cons-cadeia", 501);
+        tableOfReservedWordsAndSymbols.put("caracter", 102);
+        tableOfReservedWordsAndSymbols.put("logico", 109);
+        tableOfReservedWordsAndSymbols.put("(", 302);
+        tableOfReservedWordsAndSymbols.put("*", 402);
+        tableOfReservedWordsAndSymbols.put("cons-caracter", 502);
+        tableOfReservedWordsAndSymbols.put("declaracoes", 103);
+        tableOfReservedWordsAndSymbols.put("pausa", 110);
+        tableOfReservedWordsAndSymbols.put(")", 303);
+        tableOfReservedWordsAndSymbols.put("/", 403);
+        tableOfReservedWordsAndSymbols.put("cons-inteiro", 503);
+        tableOfReservedWordsAndSymbols.put("enquanto", 104);
+        tableOfReservedWordsAndSymbols.put("programa", 111);
+        tableOfReservedWordsAndSymbols.put(",", 304);
+        tableOfReservedWordsAndSymbols.put("+", 404);
+        tableOfReservedWordsAndSymbols.put("cons-real", 504);
+        tableOfReservedWordsAndSymbols.put("...", 605);
+        tableOfReservedWordsAndSymbols.put("false", 201);
+        tableOfReservedWordsAndSymbols.put("real", 112);
+        tableOfReservedWordsAndSymbols.put(":", 305);
+        tableOfReservedWordsAndSymbols.put("!=", 411);
+        tableOfReservedWordsAndSymbols.put("nom-funcao", 511);
+        tableOfReservedWordsAndSymbols.put("fim-declaracoes", 202);
+        tableOfReservedWordsAndSymbols.put("retorna", 113);
+        tableOfReservedWordsAndSymbols.put(":=", 306);
+        tableOfReservedWordsAndSymbols.put("#", 411);
+        tableOfReservedWordsAndSymbols.put("nom-programa", 512);
+        tableOfReservedWordsAndSymbols.put("fim-enquanto", 203);
+        tableOfReservedWordsAndSymbols.put("se", 114);
+        tableOfReservedWordsAndSymbols.put(";", 307);
+        tableOfReservedWordsAndSymbols.put("<", 412);
+        tableOfReservedWordsAndSymbols.put("variavel", 513);
+        tableOfReservedWordsAndSymbols.put("fim-func", 204);
+        tableOfReservedWordsAndSymbols.put("senao", 115);
+        tableOfReservedWordsAndSymbols.put("?", 308);
+        tableOfReservedWordsAndSymbols.put("<=", 413);
+        tableOfReservedWordsAndSymbols.put("fim-funcoes", 205);
+        tableOfReservedWordsAndSymbols.put("tipo-func", 116);
+        tableOfReservedWordsAndSymbols.put("[", 309);
+        tableOfReservedWordsAndSymbols.put("==", 414);
+        tableOfReservedWordsAndSymbols.put("fim-programa", 206);
+        tableOfReservedWordsAndSymbols.put("tipo-param", 117);
+        tableOfReservedWordsAndSymbols.put("]", 310);
+        tableOfReservedWordsAndSymbols.put(">", 415);
+        tableOfReservedWordsAndSymbols.put("fim-se", 105);
+        tableOfReservedWordsAndSymbols.put("tipo-var", 118);
+        tableOfReservedWordsAndSymbols.put("{", 311);
+        tableOfReservedWordsAndSymbols.put(">=", 416);
+        tableOfReservedWordsAndSymbols.put("funcoes", 106);
+        tableOfReservedWordsAndSymbols.put("true", 119);
+        tableOfReservedWordsAndSymbols.put("}", 312);
+        tableOfReservedWordsAndSymbols.put("imprime", 107);
+        tableOfReservedWordsAndSymbols.put("vazio", 120);
+        tableOfReservedWordsAndSymbols.put("atomo teste", 120);
     }
-
-    private final String inputFile;
-    private final List<String> symbolsTable;
-    private final List<String> lexemes;
-    private final List<Integer> codes;
-    private final List<Integer> indices;
-    private final List<Integer> lines;
 
     public LexicalAnalyzer(String inputFile) {
         if (!inputFile.endsWith(".231")) {
@@ -83,102 +87,186 @@ public class LexicalAnalyzer {
         initializeAtomsWithCodes();
 
         this.inputFile = inputFile;
-        this.symbolsTable = new ArrayList<>();
-        this.lexemes = new ArrayList<>();
-        this.codes = new ArrayList<>();
-        this.indices = new ArrayList<>();
-        this.lines = new ArrayList<>();
+        this.tokens = new ArrayList<>();
     }
 
-    public void analyze() {
+    public List<Token> analyze() {
+        tokens = new ArrayList<>();
+
         try {
             BufferedReader reader = new BufferedReader(new FileReader(inputFile));
             String line;
             int lineNumber = 1;
+
             while ((line = reader.readLine()) != null) {
                 readAndProcessLine(line, lineNumber);
                 lineNumber++;
             }
+
             reader.close();
-            generateLexicalReport();
-            generateSymbolTableReport();
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        return tokens;
     }
 
     private void readAndProcessLine(String line, int lineNumber) {
         int index = 0;
         int lineLength = line.length();
+        int lexemeOriginalLength = 0;
 
         while (index < lineLength) {
             char currentChar = line.charAt(index);
-            if (Character.isWhitespace(currentChar)) {
-                index++;
-                continue;
-            }
 
-            if (currentChar == '/' && index + 1 < lineLength && line.charAt(index + 1) == '/') {
-                // Ignore the rest of the line, as it's a single-line comment
-                break;
-            } else if (currentChar == '/' && index + 1 < lineLength && line.charAt(index + 1) == '*') {
-                // Ignore until finding the closing of the block comment
-                int closingIndex = line.indexOf("*/", index + 2);
+            if (insideBlockComment) {
+                int closingIndex = line.indexOf("*/", index);
                 if (closingIndex != -1) {
                     index = closingIndex + 2;
+                    insideBlockComment = false;
                 } else {
-                    break;
+                    return;
                 }
                 continue;
+            } else if (currentChar == '/' && index + 1 < lineLength && line.charAt(index + 1) == '*') {
+                insideBlockComment = true;
+                index += 2;
+                continue;
+            } else if (currentChar == '/' && index + 1 < lineLength && line.charAt(index + 1) == '/') {
+                break;
             }
 
-            // Form the atom from the current character and subsequent valid characters
             StringBuilder lexemeBuilder = new StringBuilder();
 
-            while (index < lineLength && lexemeBuilder.length() < MAX_LEXEME_LENGTH) {
-                if (isValidCharacter(line.charAt(index)) && isValidCharacterForAtom(lexemeBuilder.toString() + line.charAt(index))) {
-                    lexemeBuilder.append(line.charAt(index));
+            while (index < lineLength) {
+                currentChar = line.charAt(index);
+
+                if (Character.isWhitespace(currentChar)) {
+                    lexemeBuilder.append(currentChar);
+                    if (lexemeBuilder.length() > 0 && !isValidCharacterForAtom(lexemeBuilder.toString())) {
+                        break;
+                    }
+                    index++;
+                    continue;
+                } else if (isValidCharacter(currentChar) && isValidCharacterForAtom(lexemeBuilder.toString() + currentChar)) {
+                    lexemeBuilder.append(currentChar);
                 } else if (lexemeBuilder.length() > 0) {
-                    if (!Character.isWhitespace(line.charAt(index))) {
+                    if (!isValidCharacter(currentChar)) {
                         index++;
                         continue;
                     }
                     break;
                 }
 
-                if (Character.isWhitespace(line.charAt(index))) break;
-
                 index++;
             }
 
-            // Continue reading past the 30 character limit until we find a delimiter
+            if (lexemeBuilder.length() > MAX_LEXEME_LENGTH) {
+                lexemeOriginalLength = lexemeBuilder.length();
+                lexemeBuilder.setLength(MAX_LEXEME_LENGTH);
+            }
+
             while (index < lineLength && isValidCharacter(line.charAt(index)) && !Character.isWhitespace(line.charAt(index))) {
                 index++;
             }
 
-            // Check if the atom is a valid identifier
-            String lexeme = lexemeBuilder.toString().toUpperCase();
-
+            String lexeme = lexemeBuilder.toString().trim().toUpperCase();
             if (!lexeme.isEmpty()) {
-                int code = getOrDefault(lexeme, -1, atomsWithCodes);
-                if (code != -1) {
-                    symbolsTable.add(lexeme);
-                    lexemes.add(lexeme);
-                    codes.add(code);
-                    indices.add(symbolsTable.size());
-                    lines.add(lineNumber);
-                }
+                processLexeme(lexeme, lineNumber, lexemeOriginalLength);
             }
 
             if (index < lineLength && !isValidCharacter(line.charAt(index)) && !Character.isWhitespace(line.charAt(index))) {
                 index++;
             }
+            if (index < lineLength && Character.isWhitespace(line.charAt(index))) {
+                index++;
+            }
         }
     }
 
+    private void processLexeme(String lexeme, int lineNumber, int lexemeOriginalLength) {
+        int code = getOrDefault(lexeme, -1, tableOfReservedWordsAndSymbols);
+        if (code != -1) {
+            Optional<Map.Entry<String, Integer>> possibleMap = getTypeOfLexeme(lexeme, tableOfReservedWordsAndSymbols).entrySet().stream().findFirst();
+            String typeOfLexeme = possibleMap.isPresent() ? possibleMap.get().getKey() : "-";
+            Token token = new Token(counter++, code, lexeme, lexemeOriginalLength, lexeme.length(), typeOfLexeme, String.valueOf(lineNumber));
+            if (isAIdentifierAtom(lexeme)) {
+                token.setIndexInSymbolTable(symbolTable.getTokens().size());
+                symbolTable.addToken(token);
+            }
+            tokens.add(token);
+        }
+    }
+
+    private boolean isValidCharacterForAtom(String possibleLexeme) {
+        return tableOfReservedWordsAndSymbols.keySet().stream().anyMatch(atom -> atom.toUpperCase().startsWith(possibleLexeme.toUpperCase())) ||
+                (!getTypeOfLexeme(possibleLexeme, tableOfReservedWordsAndSymbols).isEmpty());
+    }
+
+    private boolean isAIdentifierAtom(String lexeme) {
+        return !getTypeOfLexeme(lexeme, tableOfReservedWordsAndSymbols).isEmpty() && !existsInTableOfReservedWordsAndSymbols(lexeme);
+    }
+
+    private boolean existsInTableOfReservedWordsAndSymbols(String lexeme) {
+        return tableOfReservedWordsAndSymbols.keySet().stream().anyMatch(atom -> atom.equalsIgnoreCase(lexeme));
+    }
 
     private int getOrDefault(Object key, int defaultValue, Map<String, Integer> atomCodes) {
-        return atomCodes.keySet().stream().filter(atom -> atom.equalsIgnoreCase((String) key)).findFirst().map(atomCodes::get).orElse(defaultValue);
+        Integer integer = atomCodes
+                .keySet()
+                .stream()
+                .filter(atom -> atom.equalsIgnoreCase((String) key))
+                .findFirst()
+                .map(atomCodes::get)
+                .orElse(defaultValue);
+
+        if (integer == defaultValue) {
+            Map<String, Integer> typeOfLexeme = getTypeOfLexeme(key.toString(), atomCodes);
+            if (!typeOfLexeme.isEmpty()) {
+                integer = typeOfLexeme.entrySet().stream().findFirst().get().getValue();
+            }
+        }
+
+        return integer;
+    }
+
+    private Map<String, Integer> getTypeOfLexeme(String lexeme, Map<String, Integer> atomCodes) {
+        String nomProgramaPattern = "^[a-z]+[a-z0-9]*$";
+        String variavelPattern = "^[_a-z]+[a-z0-9_]*$";
+        String nomFuncaoPattern = "^[a-z]+[a-z0-9]*$";
+        String consInteiroPattern = "^[0-9]+$";
+        String consRealPattern = "^[0-9]+(\\.[0-9]*)?(e[+-]?[0-9]+)?$";
+        String consCadeiaPattern = "^\".*\"$";
+        String consCaracterPattern = "^'[a-z]'$";
+
+        Pattern nomPrograma = Pattern.compile(nomProgramaPattern, CASE_INSENSITIVE);
+        Pattern variavel = Pattern.compile(variavelPattern, CASE_INSENSITIVE);
+        Pattern nomFuncao = Pattern.compile(nomFuncaoPattern, CASE_INSENSITIVE);
+        Pattern consInteiro = Pattern.compile(consInteiroPattern, CASE_INSENSITIVE);
+        Pattern consReal = Pattern.compile(consRealPattern, CASE_INSENSITIVE);
+        Pattern consCadeia = Pattern.compile(consCadeiaPattern, CASE_INSENSITIVE);
+        Pattern consCaracter = Pattern.compile(consCaracterPattern, CASE_INSENSITIVE);
+
+
+        Map <String, Integer> map = new HashMap<>();
+
+        if(nomPrograma.matcher(lexeme).matches()) {
+            map.put("nom-programa", atomCodes.get("nom-programa"));
+        } else if(variavel.matcher(lexeme).matches()) {
+            map.put("variavel", atomCodes.get("variavel"));
+        } else if(nomFuncao.matcher(lexeme).matches()) {
+            map.put("nom-funcao", atomCodes.get("nom-funcao"));
+        } else if(consInteiro.matcher(lexeme).matches()) {
+            map.put("cons-inteiro", atomCodes.get("cons-inteiro"));
+        } else if(consReal.matcher(lexeme).matches()) {
+            map.put("cons-real", atomCodes.get("cons-real"));
+        } else if(consCadeia.matcher(lexeme).matches()) {
+            map.put("cons-cadeia", atomCodes.get("cons-cadeia"));
+        } else if(consCaracter.matcher(lexeme).matches()) {
+            map.put("cons-caracter", atomCodes.get("cons-caracter"));
+        }
+
+        return map;
     }
 
     private boolean isValidCharacter(Character c) {
@@ -186,69 +274,11 @@ public class LexicalAnalyzer {
         return (asciiValue <= 127) && (Character.isLetterOrDigit(asciiValue) || c == '_' || c == '$' || c == '.');
     }
 
-    private boolean isValidCharacterForAtom(String possibleLexeme) {
-        return atomsWithCodes.keySet().stream().anyMatch(atom -> atom.toUpperCase().startsWith(possibleLexeme.toUpperCase()));
+    public String getInputFile() {
+        return inputFile;
     }
 
-    private void generateLexicalReport() {
-        String baseName = inputFile.substring(0, inputFile.lastIndexOf('.'));
-        String lexReportFile = baseName + ".LEX";
-
-        try {
-            PrintWriter writer = new PrintWriter(new FileWriter(lexReportFile));
-            writer.println("Código da Equipe: 067");
-            writer.println("Componentes:");
-            writer.println("Eduardo Wanderley; eduardobraz.junior@ucsal.edu.br; (75)98207-4248");
-            writer.println("RELATÓRIO DA ANÁLISE LÉXICA. Texto fonte analisado: " + inputFile);
-
-            for (int i = 0; i < lexemes.size(); i++) {
-                writer.println("Lexeme: " + lexemes.get(i) +
-                        ", Código: " + codes.get(i) +
-                        ", ÍndiceTabSimb: " + indices.get(i) +
-                        ", Linha: " + lines.get(i) + ".");
-            }
-
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void generateSymbolTableReport() {
-        String baseName = inputFile.substring(0, inputFile.lastIndexOf('.'));
-        String tabReportFile = baseName + ".TAB";
-
-        try {
-            PrintWriter writer = new PrintWriter(new FileWriter(tabReportFile));
-            writer.println("Código da Equipe: 067");
-            writer.println("Componentes:");
-            writer.println("Eduardo Wanderley; eduardobraz.junior@ucsal.edu.br; (75)98207-4248");
-            writer.println("RELATÓRIO DA TABELA DE SÍMBOLOS. Texto fonte analisado: " + inputFile);
-
-            for (int i = 0; i < symbolsTable.size(); i++) {
-                String symbol = symbolsTable.get(i);
-                writer.println("Entrada: " + (i + 1) +
-                        ", Código: " + codes.get(i) +
-                        ", Lexeme: " + symbol +
-                        ", QtdCharAntesTrunc: " + symbol.length() +
-                        ", QtdCharDepoisTrunc: " + symbol.length() +
-                        ", TipoSimb: -" +
-                        ", Linhas: (" + lines.get(i) + ").");
-            }
-
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void main(String[] args) {
-//        if (args.length != 1) {
-//            System.out.println("Erro: você deve fornecer o arquivo de entrada como argumento");
-//            return;
-//        }
-//        String input = args[0];
-
-        new LexicalAnalyzer("/home/eduardo/Workspace/ucsal/statickChecker/Teste.231").analyze();
+    public SymbolTable getSymbolTable() {
+        return symbolTable;
     }
 }

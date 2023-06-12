@@ -4,6 +4,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
+import java.util.Set;
 
 public class Reporter {
     public static void generateLexicalReport(String inputFile, List<Token> tokens) {
@@ -19,9 +20,9 @@ public class Reporter {
 
             for (Token token : tokens) {
                 writer.println("Lexeme: " + token.getLexeme() +
-                        ", Código: " + token.getCode() +
-                        ", ÍndiceTabSimb: " + token.getIndex() +
-                        ", Linha: " + token.getLine() + ".");
+                        ", Código: " + token.getAtomCode() +
+                        ", ÍndiceTabSimb: " + token.getIndexInSymbolTable() +
+                        ", Linha: " + token.getLineOfAppearance() + ".");
             }
 
             writer.close();
@@ -30,9 +31,11 @@ public class Reporter {
         }
     }
 
-    public static void generateSymbolTableReport(String inputFile, List<Token> tokens) {
+    public static void generateSymbolTableReport(String inputFile, SymbolTable symbolTable, List<Token> allTokens) {
         String baseName = inputFile.substring(0, inputFile.lastIndexOf('.'));
         String tabReportFile = baseName + ".TAB";
+
+        Set<Token> tokens = symbolTable.getTokens();
 
         try {
             PrintWriter writer = new PrintWriter(new FileWriter(tabReportFile));
@@ -41,20 +44,32 @@ public class Reporter {
             writer.println("Eduardo Wanderley; eduardobraz.junior@ucsal.edu.br; (75)98207-4248");
             writer.println("RELATÓRIO DA TABELA DE SÍMBOLOS. Texto fonte analisado: " + inputFile);
 
-            for (int i = 0; i < tokens.size(); i++) {
-                Token token = tokens.get(i);
-                writer.println("Entrada: " + (i + 1) +
-                        ", Código: " + token.getCode() +
+            for (Token token : tokens) {
+                writer.println("Entrada: " + token.getEnterNumber() +
+                        ", Código: " + token.getAtomCode() +
                         ", Lexeme: " + token.getLexeme() +
-                        ", QtdCharAntesTrunc: " + token.getLexeme().length() +
-                        ", QtdCharDepoisTrunc: " + token.getLexeme().length() +
-                        ", TipoSimb: -" +
-                        ", Linhas: (" + token.getLine() + ").");
+                        ", QtdCharAntesTrunc: " + token.getQtdBeforeTrunc() +
+                        ", QtdCharDepoisTrunc: " + token.getQtdAfterTrunc() +
+                        ", TipoSimb: " + token.getSymbolType() +
+                        ", Linhas: (" + getAllLinesThatLexemeAppears(token.getLexeme(), allTokens) + ").");
             }
 
             writer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static String getAllLinesThatLexemeAppears(String lexeme, List<Token> allTokens) {
+        String lines = "";
+        for (Token token : allTokens) {
+            if (token.getLexeme().equals(lexeme)) {
+                if (lines.contains(token.getLineOfAppearance())) {
+                    continue;
+                }
+                lines += token.getLineOfAppearance() + ", ";
+            }
+        }
+        return lines.substring(0, lines.length() - 2);
     }
 }
